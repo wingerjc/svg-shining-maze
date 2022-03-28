@@ -1,0 +1,13 @@
+{
+    "unit": "mm",
+    "thickness": {
+        "min": 2.7,
+        "max": 3.3,
+        "nom": 3.0
+    },
+    "kerf": 0.2,
+    "min_part": 6.0,
+    "min_feature": 1.0,
+    "min_engraving": 1.0,
+    "note": "Collected 3/26/22."
+}
