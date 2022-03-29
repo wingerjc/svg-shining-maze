@@ -2,6 +2,5 @@
     "cut_color": "0xFF0000",
     "line_color": "0x00FF00",
     "area_color": "0x0000FF",
-    "unit": "mm",
-    "line-w": 0.1
+    "line_w": 0.1
 }

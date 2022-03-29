@@ -13,6 +13,6 @@
         "height": 0.1,
         "width": 3.0
     },
-    "corner-radius": 0.5,
+    "corner_radius": 0.5,
     "note": "Collected 3/26/22, using Green 3.0mm as base."
 }

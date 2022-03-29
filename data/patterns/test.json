@@ -1,0 +1,36 @@
+{
+    "hall_ratio": 1.5,
+    "size": {
+        "w": 9,
+        "l": 13
+    },
+    "border": {
+        "w_door": "2a1h",
+        "w_tower": 4,
+        "l_tower": 5,
+        "w_lamps": 0,
+        "l_lamps": 0
+    },
+    "center": {
+        "l": "4h",
+        "r": "12h",
+        "t": "3h",
+        "b": "6h",
+        "w_door": "1a2h",
+        "dividers": 1
+    },
+    "walls": {
+        "e-w": [
+            { "row": "2h", "start": "3h", "end": "7h" },
+            { "row": "2h", "start": "8h", "end": "10a" },
+            { "row": "7h", "start": "2h", "end": "5h" },
+            { "row": "8h", "start": "6h", "end": "10h" }
+        ],
+        "n-s": [
+            { "col": "2h", "start": "3h", "end": "6h" },
+            { "col": "3h", "start": "2h", "end": "8h" },
+            { "col": "7h", "start": "8h", "end": "9h" },
+            { "col": "10h", "start": "7h", "end": "8h" }
+        ]
+    }
+}
