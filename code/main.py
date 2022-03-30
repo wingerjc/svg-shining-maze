@@ -106,13 +106,14 @@ class MapWall(object):
         self,
         start: str,
         end: str,
-        row: str="",
-        col: str="",
+        row: str=None,
+        col: str=None,
     ) -> None:
         self.start = start
         self.end = end
         self.row = row
         self.col = col
+        self.group: int = None 
 
 class Map(object):
     def __init__(
@@ -154,14 +155,100 @@ class SVGMaze(object):
         self.material = material
         self.provider = provider
 
+    def pos_num(self, place:str) -> float:
+        pos_type = place[-1]
+        pos_num = float(place[:-1])
+        if pos_type == "h":
+            return pos_num*2-1
+        return pos_num*2
+
+    def edge(self, place:str, outside:bool, is_hedge: bool):
+        pos_num = int(place[:-1])
+        on_hedge = place[-1] == "h"
+        ratio = self.map.hall_ratio
+
+        # start extreme right/bottom
+        val = pos_num * (1 + ratio)
+        # 
+        if on_hedge:
+            val -= ratio
+
+        # adjust to inside hedge
+        if not outside:
+            val -= 1 if on_hedge else ratio
+
+        # adjust measuring hedge when it lies on an aisle location.
+        if is_hedge and not on_hedge:
+            val += ((ratio-1)/2) * (-1 if outside else 1)
+
+        return val*self.material.thickness.nom
+
+    def _borders(self) -> List[MapWall]:
+        w = self.map.size.w
+        l = self.map.size.l
+        return [
+            MapWall("1h", "{}h".format(l), row="1h"),
+            MapWall("1h", "{}h".format(l), row= "{}h".format(w)),
+            MapWall("1h", "{}h".format(w), col="1h"),
+            MapWall("1h", "{}h".format(int(w/2-1)), col="{}h".format(l)),
+            MapWall("{}h".format(int(w/2+1)), "{}h".format(w), col="{}h".format(l)),
+        ]
+
+    def _center() -> List[MapWall]:
+        return []
+
+    def rect(self, wall: MapWall):
+        args = {}
+        if wall.row is not None:
+            args["h"] = self.material.thickness.nom
+            args["x"] = self.edge(wall.start, False, True)
+            args["y"] = self.edge(wall.row, False, True)
+            x_end = self.edge(wall.end, True, True)
+            args["w"] = x_end - args["x"]
+        else:
+            args["w"] = self.material.thickness.nom
+            args["x"] = self.edge(wall.col, False, True)
+            args["y"] = self.edge(wall.start, False, True)
+            y_end = self.edge(wall.end, True, True)
+            args["h"] = y_end - args["y"]
+        
+        args["color"] = "black"
+        args["stroke"] = 0.1
+
+        return """
+        <rect x="{x}" y="{y}" width="{w}" height="{h}"
+        fill="{color}" stroke="{color}" stroke-width="{stroke}"/>
+        """.format(**args)
+
+    def shift(self, body:str, x_shift: int=0, y_shift: int=0):
+        return """<g transform="translate({x} {y})">
+        {body}
+        </g>
+        """.format(
+            body=body,
+            x = x_shift * self.material.thickness.nom,
+            y = y_shift * self.material.thickness.nom,
+        )
+
+    def _group_walls(self):
+        groups: List[List[MapWall]] = [[]]
+        cur_group = 0
+        self.map.rows[0].group = 0
+
     def write_file(self):
         width = self.material.thickness.nom * ((2 * table_offset) + self.map.size.w + ((self.map.size.w - 1) * self.map.hall_ratio))
         length = self.material.thickness.nom * ((2 * table_offset) + self.map.size.l + ((self.map.size.l - 1) * self.map.hall_ratio))
 
-        body = """
-        <rect x="9" y="9" width="15" height="3"
-        fill="none" stroke="blue" stroke-width="0.1"/>
-        """
+        border = self._borders()
+
+        pattern = "".join(
+            [self.rect(b) for b in border] +
+            [self.rect(r) for r in self.map.rows] +
+            [self.rect(c) for c in self.map.cols]
+        )
+
+        body = self.shift(pattern, 3, 3)
+
         print(file_tag.format(
             unit=self.material.unit,
             w=length,
@@ -169,9 +256,10 @@ class SVGMaze(object):
             body=body,
         ))
 
+        
 
-map = Map(**json.load(io.FileIO("./data/patterns/test.json")))
-material = Material(**json.load(io.FileIO("./data/ponoko/mat/acr3.json")))
+map = Map(**json.load(io.FileIO("./data/patterns/savage.json")))
+material = Material(**json.load(io.FileIO("./data/ponoko/mat/look.json")))
 provider = Provider(**json.load(io.FileIO("./data/ponoko/provider.json")))
 
 maze = SVGMaze(map, material, provider)

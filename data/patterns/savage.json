@@ -5,23 +5,23 @@
         "l": 29
     },
     "border": {
-        "w-door": "2a1h",
-        "w-tower": 8,
-        "l-tower": 10,
-        "w-lamps": 8,
-        "l-lamps": 10
+        "w_door": "2a1h",
+        "w_tower": 8,
+        "l_tower": 10,
+        "w_lamps": 8,
+        "l_lamps": 10
     },
     "center": {
         "l": "9h",
         "r": "21h",
         "t": "9h",
         "b": "12h",
-        "w-door": "1a2h",
+        "w_door": "1a2h",
         "dividers": 3
     },
     "walls": {
         "e-w": [
-            { "row": "2h", "start": "2hh", "end": "9h" },
+            { "row": "2h", "start": "2h", "end": "9h" },
             { "row": "2h", "start": "10h", "end": "14h" },
             { "row": "2h", "start": "17h", "end": "22h" },
             { "row": "2h", "start": "23h", "end": "28h" },
