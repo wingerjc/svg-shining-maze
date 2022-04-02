@@ -1,9 +1,9 @@
 {
     "unit": "mm",
     "thickness": {
-        "min": 7.9,
-        "max": 8.1,
-        "nom": 8.0
+        "min": 2.2,
+        "max": 3.5,
+        "nom": 3.0
     },
     "kerf": 0.2,
     "min_part": 6.0,

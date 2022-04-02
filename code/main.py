@@ -1,17 +1,25 @@
 
 
+from ast import pattern
 import io
 import json
-from typing import Any, Dict, List 
+import re
+from typing import Any, Dict, List, Tuple
+from pprint import pprint 
 
 table_offset = 3
 
 file_tag = """
-<svg version="1.1"
-     width="{w}" height="{h}"
-     xmlns="http://www.w3.org/2000/svg">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 
-    {body}
+<svg
+   width="{w}{unit}"
+   height="{h}{unit}"
+   viewBox="0 0 {w} {h}"
+   version="1.1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+   {body}
 </svg>
 """
 
@@ -79,9 +87,9 @@ class MapCenter(object):
         w_door: str,
         dividers: int,
     ) -> None:
-        self.l = l,
-        self.r = r,
-        self.t = t,
+        self.l = l
+        self.r = r
+        self.t = t
         self.b = b
         self.w_door = w_door
         self.dividers = dividers
@@ -155,6 +163,11 @@ class SVGMaze(object):
         self.material = material
         self.provider = provider
 
+    w_re = re.compile("([\\d]+)a([\\d]+)h")
+    def str_width(self, val: str) -> Tuple[int, int]:
+        a, h = self.w_re.match(val).groups(1, 2)
+        return (int(a), int(h))
+
     def pos_num(self, place:str) -> float:
         pos_type = place[-1]
         pos_num = float(place[:-1])
@@ -183,19 +196,38 @@ class SVGMaze(object):
 
         return val*self.material.thickness.nom
 
+    def _center_aisle(self):
+        w = self.map.size.w
+        t_end = "{}a".format(int(w/2)-1)
+        b_start = "{}a".format(int(w/2)+1)
+        if w % 2 == 1:
+            t_end = "{}h".format(int(w-1)/2)
+            b_start = "{}h".format(int(w+3)/2)
+        return t_end, b_start
+
+
     def _borders(self) -> List[MapWall]:
         w = self.map.size.w
         l = self.map.size.l
+
+        t_end, b_start = self._center_aisle()
         return [
             MapWall("1h", "{}h".format(l), row="1h"),
             MapWall("1h", "{}h".format(l), row= "{}h".format(w)),
             MapWall("1h", "{}h".format(w), col="1h"),
-            MapWall("1h", "{}h".format(int(w/2-1)), col="{}h".format(l)),
-            MapWall("{}h".format(int(w/2+1)), "{}h".format(w), col="{}h".format(l)),
+            MapWall("1h", t_end, col="{}h".format(l)),
+            MapWall(b_start, "{}h".format(w), col="{}h".format(l)),
         ]
 
-    def _center() -> List[MapWall]:
-        return []
+    def _center(self) -> List[MapWall]:
+        t_end, b_start = self._center_aisle()
+        c = self.map.center
+        return [
+            MapWall(c.t, t_end, col=c.l),
+            MapWall(b_start, c.b, col=c.l),
+            MapWall(c.t, t_end, col=c.r),
+            MapWall(b_start, c.b, col=c.r),
+        ]
 
     def rect(self, wall: MapWall):
         args = {}
@@ -245,6 +277,7 @@ class SVGMaze(object):
             [self.rect(b) for b in border] +
             [self.rect(r) for r in self.map.rows] +
             [self.rect(c) for c in self.map.cols]
+            + [self.rect(c) for c in self._center()]
         )
 
         body = self.shift(pattern, 3, 3)
