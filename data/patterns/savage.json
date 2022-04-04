@@ -17,6 +17,7 @@
         "t": "9h",
         "b": "12h",
         "w_door": "1a2h",
+        "w_corner": 2,
         "dividers": 3
     },
     "walls": {

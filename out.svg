@@ -376,6 +376,36 @@
         <rect x="150.0" y="78.75" width="3.0" height="6.75"
         fill="black" stroke="black" stroke-width="0.1"/>
         
+        <rect x="60.0" y="60.0" width="18.0" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
+        <rect x="60.0" y="82.5" width="18.0" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
+        <rect x="135.0" y="60.0" width="18.0" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
+        <rect x="135.0" y="82.5" width="18.0" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
+        <rect x="82.5" y="60.0" width="14.25" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
+        <rect x="82.5" y="82.5" width="14.25" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
+        <rect x="116.25" y="60.0" width="14.25" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
+        <rect x="116.25" y="82.5" width="14.25" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
+        <rect x="101.25" y="60.0" width="10.5" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
+        <rect x="101.25" y="82.5" width="10.5" height="3.0"
+        fill="black" stroke="black" stroke-width="0.1"/>
+        
         </g>
         
 </svg>

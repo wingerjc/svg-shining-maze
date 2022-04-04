@@ -4,6 +4,7 @@ from ast import pattern
 import io
 import json
 import re
+import sys
 from typing import Any, Dict, List, Tuple
 from pprint import pprint 
 
@@ -85,6 +86,7 @@ class MapCenter(object):
         t: str,
         b: str,
         w_door: str,
+        w_corner: int,
         dividers: int,
     ) -> None:
         self.l = l
@@ -93,6 +95,7 @@ class MapCenter(object):
         self.b = b
         self.w_door = w_door
         self.dividers = dividers
+        self.w_corner = w_corner
 
 class MapBorder(object):
     def __init__(
@@ -163,6 +166,25 @@ class SVGMaze(object):
         self.material = material
         self.provider = provider
 
+    pos_re = re.compile("([\\d]+)(h|a)")
+    def _add(self, pos: str, diff: int) -> str:
+        pos_num, pos_type = self.pos_re.match(pos).groups((1, 2))
+        return "{}{}".format(int(pos_num) + diff, pos_type)
+
+    def _pos_from_str(self, pos) -> Tuple[int, str]:
+        num, unit = self.pos_re.match(pos).groups((1, 2))
+        return (int(num), unit)
+
+    def _to_space(self, num: int, unit: str) -> int:
+        if unit == "h":
+            return (num * 2) - 1
+        return (num * 2)
+
+    def _from_space(self, space: int) -> Tuple[int, str]:
+        if space % 2 == 0:
+            return (space // 2, "a")
+        return ((space+1) // 2, "h")
+
     w_re = re.compile("([\\d]+)a([\\d]+)h")
     def str_width(self, val: str) -> Tuple[int, int]:
         a, h = self.w_re.match(val).groups(1, 2)
@@ -209,7 +231,6 @@ class SVGMaze(object):
     def _borders(self) -> List[MapWall]:
         w = self.map.size.w
         l = self.map.size.l
-
         t_end, b_start = self._center_aisle()
         return [
             MapWall("1h", "{}h".format(l), row="1h"),
@@ -222,12 +243,65 @@ class SVGMaze(object):
     def _center(self) -> List[MapWall]:
         t_end, b_start = self._center_aisle()
         c = self.map.center
+        middles = []
+        l, l_unit = self._pos_from_str(c.l)
+        r, r_unit = self._pos_from_str(c.r)
+        r_sp = self._to_space(r - c.w_corner - 1, r_unit)
+        l_sp = self._to_space(l + c.w_corner + 1, l_unit)
+        middle_w = r_sp - l_sp + 2 - c.dividers
+        seg_w = middle_w // c.dividers
+        seg_rem = middle_w % c.dividers
+
+        print(middle_w, seg_w, seg_rem, file=sys.stderr)
+
+        for i in range(c.dividers // 2):
+            w = seg_w
+            if seg_rem > 0:
+                seg_rem -= 1
+                w += 1
+            num, unit = self._from_space(l_sp)
+            s = "{}{}".format(num, unit)
+            num, unit = self._from_space(l_sp + w-1)
+            e = "{}{}".format(num, unit)
+            middles = middles + [
+                MapWall(s, e, row=c.t),
+                MapWall(s, e, row=c.b),
+            ]
+            l_sp += w + 1
+            w = seg_w
+            if seg_rem > 0:
+                seg_rem -= 1
+                w += 1
+            num, unit = self._from_space(r_sp)
+            e = "{}{}".format(num, unit)
+            num, unit = self._from_space(r_sp - w+1)
+            s = "{}{}".format(num, unit)
+            middles = middles + [
+                MapWall(s, e, row=c.t),
+                MapWall(s, e, row=c.b),
+            ]
+            r_sp -= (w + 1)
+        
+        if c.dividers % 2 == 1:
+            num, unit = self._from_space(l_sp)
+            s = "{}{}".format(num, unit)
+            num, unit = self._from_space(r_sp)
+            e = "{}{}".format(num, unit)
+            middles = middles + [
+                MapWall(s, e, row=c.t),
+                MapWall(s, e, row=c.b),
+            ]
+
         return [
             MapWall(c.t, t_end, col=c.l),
             MapWall(b_start, c.b, col=c.l),
             MapWall(c.t, t_end, col=c.r),
             MapWall(b_start, c.b, col=c.r),
-        ]
+            MapWall(c.l, self._add(c.l, c.w_corner), row=c.t),
+            MapWall(c.l, self._add(c.l, c.w_corner), row=c.b),
+            MapWall(self._add(c.r, -1 * c.w_corner), c.r, row=c.t),
+            MapWall(self._add(c.r, -1 * c.w_corner), c.r, row=c.b),
+        ] + middles
 
     def rect(self, wall: MapWall):
         args = {}
