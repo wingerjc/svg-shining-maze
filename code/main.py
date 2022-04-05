@@ -3,9 +3,10 @@
 from ast import pattern
 import io
 import json
+from optparse import Option
 import re
 import sys
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from pprint import pprint 
 
 table_offset = 3
@@ -124,8 +125,15 @@ class MapWall(object):
         self.end = end
         self.row = row
         self.col = col
-        self.group: int = None 
+        self.group: Option[int] = None 
+        self.intersect: List[MapWall] = []
+        self.color: str = "black"
 
+    def add_intersect(self, other) -> None:
+        self.intersect.append(other)
+    
+    def is_row(self) -> bool:
+        return self.row is not None
 class Map(object):
     def __init__(
         self,
@@ -165,25 +173,44 @@ class SVGMaze(object):
         self.map = map
         self.material = material
         self.provider = provider
+        self.center = self._center()
+        self.border = self._borders()
 
     pos_re = re.compile("([\\d]+)(h|a)")
     def _add(self, pos: str, diff: int) -> str:
+        """
+        Add `diff` spaces to the `pos` value, does not change a/h.
+        """
         pos_num, pos_type = self.pos_re.match(pos).groups((1, 2))
         return "{}{}".format(int(pos_num) + diff, pos_type)
 
-    def _pos_from_str(self, pos) -> Tuple[int, str]:
+    def _str_to_pos(self, pos) -> Tuple[int, str]:
+        """
+        Converts a position
+        """
         num, unit = self.pos_re.match(pos).groups((1, 2))
         return (int(num), unit)
 
-    def _to_space(self, num: int, unit: str) -> int:
+    def _pos_to_space(self, num: int, unit: str) -> int:
         if unit == "h":
             return (num * 2) - 1
         return (num * 2)
 
-    def _from_space(self, space: int) -> Tuple[int, str]:
+    def _space_to_pos(self, space: int) -> Tuple[int, str]:
         if space % 2 == 0:
             return (space // 2, "a")
         return ((space+1) // 2, "h")
+
+    def _pos_to_str(self, num: int, unit: str) -> str:
+        return "{}{}".format(num, unit)
+
+    def _str_to_space(self, pos: str) -> int:
+        n, t = self._str_to_pos(pos)
+        return self._pos_to_space(n, t)
+
+    def _space_to_str(self, space: int) -> str:
+        n, t = self._space_to_pos(space)
+        return self._pos_to_str(n, t)
 
     w_re = re.compile("([\\d]+)a([\\d]+)h")
     def str_width(self, val: str) -> Tuple[int, int]:
@@ -244,24 +271,22 @@ class SVGMaze(object):
         t_end, b_start = self._center_aisle()
         c = self.map.center
         middles = []
-        l, l_unit = self._pos_from_str(c.l)
-        r, r_unit = self._pos_from_str(c.r)
-        r_sp = self._to_space(r - c.w_corner - 1, r_unit)
-        l_sp = self._to_space(l + c.w_corner + 1, l_unit)
+        l, l_unit = self._str_to_pos(c.l)
+        r, r_unit = self._str_to_pos(c.r)
+        r_sp = self._pos_to_space(r - c.w_corner - 1, r_unit)
+        l_sp = self._pos_to_space(l + c.w_corner + 1, l_unit)
         middle_w = r_sp - l_sp + 2 - c.dividers
         seg_w = middle_w // c.dividers
         seg_rem = middle_w % c.dividers
-
-        print(middle_w, seg_w, seg_rem, file=sys.stderr)
 
         for i in range(c.dividers // 2):
             w = seg_w
             if seg_rem > 0:
                 seg_rem -= 1
                 w += 1
-            num, unit = self._from_space(l_sp)
+            num, unit = self._space_to_pos(l_sp)
             s = "{}{}".format(num, unit)
-            num, unit = self._from_space(l_sp + w-1)
+            num, unit = self._space_to_pos(l_sp + w-1)
             e = "{}{}".format(num, unit)
             middles = middles + [
                 MapWall(s, e, row=c.t),
@@ -272,9 +297,9 @@ class SVGMaze(object):
             if seg_rem > 0:
                 seg_rem -= 1
                 w += 1
-            num, unit = self._from_space(r_sp)
+            num, unit = self._space_to_pos(r_sp)
             e = "{}{}".format(num, unit)
-            num, unit = self._from_space(r_sp - w+1)
+            num, unit = self._space_to_pos(r_sp - w+1)
             s = "{}{}".format(num, unit)
             middles = middles + [
                 MapWall(s, e, row=c.t),
@@ -283,9 +308,9 @@ class SVGMaze(object):
             r_sp -= (w + 1)
         
         if c.dividers % 2 == 1:
-            num, unit = self._from_space(l_sp)
+            num, unit = self._space_to_pos(l_sp)
             s = "{}{}".format(num, unit)
-            num, unit = self._from_space(r_sp)
+            num, unit = self._space_to_pos(r_sp)
             e = "{}{}".format(num, unit)
             middles = middles + [
                 MapWall(s, e, row=c.t),
@@ -318,7 +343,7 @@ class SVGMaze(object):
             y_end = self.edge(wall.end, True, True)
             args["h"] = y_end - args["y"]
         
-        args["color"] = "black"
+        args["color"] = wall.color
         args["stroke"] = 0.1
 
         return """
@@ -336,22 +361,109 @@ class SVGMaze(object):
             y = y_shift * self.material.thickness.nom,
         )
 
+    def _intersect(self, first: MapWall, second: MapWall) -> Optional[Tuple[str, str]]:
+        if first.is_row() == second.is_row():
+            return None
+
+        row = first
+        col = second
+        if col.is_row():
+            row = second
+            col = first
+        r = self._str_to_space(row.row)
+        r_s = self._str_to_space(row.start)
+        r_e = self._str_to_space(row.end)
+        c = self._str_to_space(col.col)
+        c_s = self._str_to_space(col.start)
+        c_e = self._str_to_space(col.end)
+
+        if r < c_s or r > c_e or c < r_s or c > r_e:
+            return None
+        
+        return (self._space_to_str(r), self._space_to_str(c))
+
+
+    def _merge_group(self, groups: Dict[int, List[MapWall]], a: MapWall, b: MapWall):
+        if b.group is None:
+            b.group = a.group
+            groups[a.group].append(b)
+            return
+       
+        dead_group = b.group
+        for w in groups[dead_group]:
+            w.group = a.group
+            groups[a.group].append(w)
+        del groups[dead_group]
+
     def _group_walls(self):
-        groups: List[List[MapWall]] = [[]]
-        cur_group = 0
-        self.map.rows[0].group = 0
+        groups: Dict[int, List[MapWall]] = {}
+        cur_group = 1
+        for i in range(len(self.border)):
+            a = self.border[i]
+            if not a.group:
+                a.group = cur_group
+                groups[cur_group] = [a]
+                cur_group += 1
+            for b in self.border[i+1:] + self.map.rows + self.map.cols:
+                if self._intersect(a, b):
+                    a.add_intersect(b)
+                    b.add_intersect(a)
+                    self._merge_group(groups, a, b)
+        
+        for i in range(len(self.center)):
+            a = self.center[i]           
+            if not a.group:
+                a.group = cur_group
+                groups[cur_group] = [a]
+                cur_group += 1
+            for b in self.center[i+1:] + self.map.rows + self.map.cols:
+                if self._intersect(a, b):
+                    a.add_intersect(b)
+                    b.add_intersect(a)
+                    self._merge_group(groups, a, b)
+
+        for a in self.map.rows:
+            if not a.group:
+                a.group = cur_group
+                groups[cur_group] = [a]
+                cur_group += 1
+            for b in self.map.cols:
+                if self._intersect(a, b):
+                    a.add_intersect(b)
+                    b.add_intersect(a)
+                    self._merge_group(groups, a, b)
+
+        for a in self.map.cols:
+            if not a.group:
+                a.group = cur_group
+                groups[cur_group] = [a]
+                cur_group += 1
+
+        colors = [
+            "red",
+            "orange",
+            "yellow",
+            "green",
+            "blue",
+            "indigo",
+            "violet"
+        ]
+
+        for k in groups:
+            for w in groups[k]:
+                w.color = colors[k % len(colors)]
 
     def write_file(self):
         width = self.material.thickness.nom * ((2 * table_offset) + self.map.size.w + ((self.map.size.w - 1) * self.map.hall_ratio))
         length = self.material.thickness.nom * ((2 * table_offset) + self.map.size.l + ((self.map.size.l - 1) * self.map.hall_ratio))
 
-        border = self._borders()
+        self._group_walls()
 
         pattern = "".join(
-            [self.rect(b) for b in border] +
-            [self.rect(r) for r in self.map.rows] +
-            [self.rect(c) for c in self.map.cols]
-            + [self.rect(c) for c in self._center()]
+            [self.rect(b) for b in self.border]
+            + [self.rect(r) for r in self.map.rows]
+            + [self.rect(c) for c in self.map.cols]
+            + [self.rect(c) for c in self.center]
         )
 
         body = self.shift(pattern, 3, 3)
